@@ -17,7 +17,7 @@ type Lexer struct {
 }
 
 func NewLexer(s CharSource) *Lexer {
-	return &Lexer{source: s}
+	return &Lexer{source: s, lineNo: 1}
 }
 
 func (l *Lexer) PrintAllChars() error {
@@ -362,7 +362,7 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		literal := ""
 		lexemeStr := lexeme.String()
 		if len(lexemeStr) > 2 {
-			literal = lexemeStr[1:(len(lexemeStr)-2)]	
+			literal = lexemeStr[1:(len(lexemeStr)-1)]	
 		}
 
 		t = Token{
