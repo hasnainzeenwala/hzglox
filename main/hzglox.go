@@ -87,6 +87,13 @@ func (s *StringToChars) GetNextChar() (val byte, hasNext bool, err error) {
 	return ch, s.p < len(s.line), nil
 }
 
+func (s *StringToChars) PeekNextChar() (ch byte, err error) {
+	if s.p >= len(s.line) {
+		return byte(0), nil
+	}
+	return s.line[s.p], nil
+}
+
 type FileCharSource struct {
 	reader *bufio.Reader
 }
@@ -106,6 +113,17 @@ func (f *FileCharSource) GetNextChar() (val byte, hasNext bool, err error) {
 		return byte(0), false, err
 	}
 	return ch, true, nil
+}
+
+func (f *FileCharSource) PeekNextChar() (ch byte, err error) {
+	bytes, err := f.reader.Peek(1)
+	if err == io.EOF {
+		return byte(0), nil
+	}
+	if err != nil {
+		return byte(0), err
+	}
+	return bytes[0], nil
 }
 
 type LineReader struct {
