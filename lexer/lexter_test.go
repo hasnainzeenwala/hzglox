@@ -11,6 +11,7 @@ func TestLexer(t *testing.T) {
 		name string
 		inputString string
 		expectedTokens []Token
+		expectedErr error
 	}
 	for _, tt := range []testCase {
 		{
@@ -77,16 +78,54 @@ func TestLexer(t *testing.T) {
 				{TType: RightBrace, Lexeme: "}", LineNo: 9},
 			},
 		},
+		{
+			name: "CodeWithComments",
+			inputString: `// This is some description
+			for blah { s = "some string"} `,
+			expectedTokens: []Token{
+				{TType: For, Lexeme: "for", LineNo: 2},
+				{TType: Identifier, Lexeme: "blah", LineNo: 2},
+				{TType: LeftBrace, Lexeme: "{", LineNo: 2},
+				{TType: Identifier, Lexeme: "s", LineNo: 2},
+				{TType: Equal, Lexeme: "=", LineNo: 2},
+				{TType: String, Lexeme: "\"some string\"", LineNo: 2, Literal: "some string"},
+				{TType: RightBrace, Lexeme: "}", LineNo: 2},
+			},
+		},
+		{
+			name: "StringNotClosed",
+			inputString: `// Things are fine
+			// we have a for loop
+			for x > 10 { a = "forgot to close }`,
+			expectedTokens: []Token{
+				{TType: For, Lexeme: "for", LineNo: 3},
+				{TType: Identifier, Lexeme: "x", LineNo: 3},
+				{TType: Greater, Lexeme: ">", LineNo: 3},
+				{TType: Number, Lexeme: "10", LineNo: 3, Literal: 10.0},
+				{TType: LeftBrace, Lexeme: "{", LineNo: 3},
+				{TType: Identifier, Lexeme: "a", LineNo: 3},
+				{TType: Equal, Lexeme: "=", LineNo: 3},
+			},
+			expectedErr: (&Lexer{lineNo: 3}).newError(
+				"reading string literal",
+				0,
+				"\"forgot to close }\x00",
+				"did not find closing quote",
+				nil,
+			),
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			chars := sources.NewStringToChars(tt.inputString)
 			lexer := NewLexer(chars)
 			tokens := make([]Token, 0)
+			var gotErr error
 
 			for {
 				tok, done, err := lexer.EmitToken()
 				if err != nil {
-					t.Fatalf("EmitToken() error = %v", err)
+					gotErr = err
+					break
 				}
 				if done {
 					break
@@ -96,6 +135,19 @@ func TestLexer(t *testing.T) {
 
 			if !reflect.DeepEqual(tokens, tt.expectedTokens) {
 				t.Fatalf("tokens mismatch\n got: %#v\nwant: %#v", tokens, tt.expectedTokens)
+			}
+
+			if tt.expectedErr == nil {
+				if gotErr != nil {
+					t.Fatalf("unexpected error = %v", gotErr)
+				}
+			} else {
+				if gotErr == nil {
+					t.Fatalf("expected error %q but got nil", tt.expectedErr.Error())
+				}
+				if gotErr.Error() != tt.expectedErr.Error() {
+					t.Fatalf("error mismatch\n got: %q\nwant: %q", gotErr.Error(), tt.expectedErr.Error())
+				}
 			}
 		})
 	}
