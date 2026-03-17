@@ -23,15 +23,6 @@ func (l Literal) PrintAst() string {
 	return l.T.Lexeme
 }
 
-func NewLiteral(T lexer.Token) (l Literal, match bool){
-	match = IsLiteral(T)
-	if match {
-		l = Literal{T}
-	}
-	return
-}
-
-
 // -- Grouping -> "(" expression ")" ; --
 type Grouping struct{
 	E Expr
@@ -43,14 +34,6 @@ func (g Grouping) PrintAst() string {
 	return "( group " + g.E.PrintAst() + " )"
 }
 
-func NewGrouping(Lt lexer.Token, E Expr, Rt lexer.Token) (g Grouping, match bool){
-	match = IsLeftParen(Lt) && E != nil && IsRightParen(Rt)
-	if match {
-		g = Grouping{E}
-	}
-	return
-}
-
 // -- Unary -> ( "-" | "!" ) expression ; --
 type Unary struct{
 	T lexer.Token
@@ -60,14 +43,6 @@ func (u Unary) IsExpr() {}
 
 func (u Unary) PrintAst() string {
 	return "( " + u.T.Lexeme + u.E.PrintAst() + " )"
-}
-
-func NewUnary(T lexer.Token, E Expr) (u Unary, match bool) {
-	match = (IsMinus(T) || IsBang(T)) && E != nil
-	if match {
-		u = Unary{T: T, E: E}
-	}
-	return
 }
 
 // -- Binary -> expression op expression ; --
@@ -82,15 +57,6 @@ func (b Binary) IsExpr() {}
 func (b Binary) PrintAst() string {
 	return "( " + b.Op.Lexeme + " " + b.Le.PrintAst() + " " + b.Re.PrintAst() + " )"
 }
-
-func NewBinary(Le Expr, Op lexer.Token, Re Expr) (b Binary, match bool) {
-	match = Le != nil && IsOperator(Op) && Re != nil
-	if match {
-		b = Binary{Le: Le, Op: Op, Re: Re}
-	}
-	return
-}
-
 
 // -- Helper functions to Establish the Token Type --
 
