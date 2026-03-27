@@ -14,6 +14,7 @@ type CharSource interface {
 type Lexer struct {
 	source CharSource
 	lineNo int
+	buffer Token
 }
 
 func NewLexer(s CharSource) *Lexer {
@@ -59,7 +60,12 @@ func (l *Lexer) PrintAllChars() error {
 	}
 }
 
-func (l *Lexer) EmitToken() (t Token, done bool, e error) {
+func (l *Lexer) EmitToken() (t Token, e error) {
+	if l.buffer.TType != Undefined {
+		t = l.buffer
+		l.buffer = Token{}
+		return
+	}
 	var lexeme strings.Builder
 	var ch byte
 	var err error
@@ -71,7 +77,6 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		ch, _, err = l.source.GetNextChar()
 		if err != nil {
 			t = Token{}
-			done = true
 			e = l.newError("reading next character", ch, lexeme.String(), "failed to get next character", err)
 			return
 		}
@@ -93,7 +98,6 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		t = Token{
 			TType: Eof,
 		}
-		done = true
 	
 	// ******************************
 	// ALl single char tokens
@@ -157,20 +161,18 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		nextCh, err := l.source.PeekNextChar()
 		if err != nil {
 			e = l.newError("peeking after slash", ch, lexeme.String(), "failed to peek next character", err)
-			done = true
 			return
 		}
 		if nextCh == '/' {
 			// keep consuming till the end of line because it's a comment
 			for nextCh, err = l.source.PeekNextChar();
-				nextCh != '\n' && err == nil;
+				nextCh != '\n' && err == nil && nextCh != 0;
 				nextCh, err = l.source.PeekNextChar() {
 				
 				_, _, err = l.source.GetNextChar()
 			}
 			if err != nil {
 				e = l.newError("consuming comment", ch, lexeme.String(), "failed while skipping comment contents", err)
-				done = true
 				return
 			}
 			// Code comment is not a token so we call EmitToken() again to get the next valid token
@@ -196,14 +198,12 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		nextCh, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after bang", ch, lexeme.String(), "failed to peek next character", err)
-			done = true
 			return
 		}
 		if nextCh == '=' {
 			ch, _, err := l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("building bang-equal lexeme", ch, lexeme.String(), "failed to consume '='", err)
-				done = true
 				return
 
 			}
@@ -224,14 +224,12 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		nextCh, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after equal", ch, lexeme.String(), "failed to peek next character", err)
-			done = true
 			return
 		}
 		if nextCh == '=' {
 			ch, _, err := l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("building equal-equal lexeme", ch, lexeme.String(), "failed to consume '='", err)
-				done = true
 				return
 
 			}
@@ -252,14 +250,12 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		nextCh, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after less-than", ch, lexeme.String(), "failed to peek next character", err)
-			done = true
 			return
 		}
 		if nextCh == '=' {
 			ch, _, err := l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("building less-equal lexeme", ch, lexeme.String(), "failed to consume '='", err)
-				done = true
 				return
 
 			}
@@ -280,14 +276,12 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		nextCh, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after greater-than", ch, lexeme.String(), "failed to peek next character", err)
-			done = true
 			return
 		}
 		if nextCh == '=' {
 			ch, _, err := l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("building greater-equal lexeme", ch, lexeme.String(), "failed to consume '='", err)
-				done = true
 				return
 
 			}
@@ -331,7 +325,6 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		}
 		if err != nil {
 			e = l.newError("building number literal", ch, lexeme.String(), "failed while extending numeric lexeme", err)
-			done = true
 			return
 		}
 
@@ -340,13 +333,11 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		lastCh := lexemeVal[len(lexemeVal) - 1]
 		if !(lastCh >= '0' && lastCh <= '9') {
 			e = l.newError("validating number literal", lastCh, lexemeVal, "a valid number must end with a digit", nil)
-			done = true
 			return
 		}
 		f, err := strconv.ParseFloat(lexemeVal, 64)
 		if err != nil {
 			e = l.newError("parsing number literal", ch, lexemeVal, "failed to parse number", err)
-			done = true
 			return
 		}
 
@@ -366,13 +357,11 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 			ch, _, err = l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("reading string literal", ch, lexeme.String(), "failed to get next character", err)
-				done = true
 				return
 			}
 			lexeme.WriteByte(ch)
 			if ch == 0 {
 				e = l.newError("reading string literal", ch, lexeme.String(), "did not find closing quote", nil)
-				done = true
 				return
 			}
 			if ch == '"' {
@@ -401,7 +390,6 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 		for {
 			nextCh, err := l.source.PeekNextChar()
 			if err != nil {
-				done = true
 				e = l.newError("peeking identifier continuation", ch, lexeme.String(), "failed to peek next character", err)
 				return
 			}
@@ -411,7 +399,6 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 			
 				ch, _, err = l.source.GetNextChar()
 				if err != nil {
-					done = true
 					e = l.newError("reading identifier continuation", ch, lexeme.String(), "failed to consume identifier character", err)
 					return
 				}
@@ -440,9 +427,16 @@ func (l *Lexer) EmitToken() (t Token, done bool, e error) {
 	// Unidentified
 	// *******************************
 	default:
-		done = true
 		e = l.newError("classifying token", ch, lexeme.String(), "unidentified character", nil)
 	}
 
+	return
+}
+
+func (l *Lexer) Peek() (t Token, e error) {
+	t, e = l.EmitToken()
+	if e != nil {
+		l.buffer = t
+	}
 	return
 }

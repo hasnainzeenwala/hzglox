@@ -17,9 +17,9 @@ type Literal struct {
 	T lexer.Token
 }
 
-func (l Literal) IsExpr() {}
+func (l *Literal) IsExpr() {}
 
-func (l Literal) PrintAst() string {
+func (l *Literal) PrintAst() string {
 	return l.T.Lexeme
 }
 
@@ -28,9 +28,9 @@ type Grouping struct{
 	E Expr
 }
 
-func (g Grouping) IsExpr() {}
+func (g *Grouping) IsExpr() {}
 
-func (g Grouping) PrintAst() string {
+func (g *Grouping) PrintAst() string {
 	return "( group " + g.E.PrintAst() + " )"
 }
 
@@ -39,9 +39,9 @@ type Unary struct{
 	T lexer.Token
 	E Expr
 }
-func (u Unary) IsExpr() {}
+func (u *Unary) IsExpr() {}
 
-func (u Unary) PrintAst() string {
+func (u *Unary) PrintAst() string {
 	return "( " + u.T.Lexeme + u.E.PrintAst() + " )"
 }
 
@@ -52,9 +52,9 @@ type Binary struct {
 	Re Expr
 }
 
-func (b Binary) IsExpr() {}
+func (b *Binary) IsExpr() {}
 
-func (b Binary) PrintAst() string {
+func (b *Binary) PrintAst() string {
 	return "( " + b.Op.Lexeme + " " + b.Le.PrintAst() + " " + b.Re.PrintAst() + " )"
 }
 

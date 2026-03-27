@@ -81,7 +81,8 @@ func TestLexer(t *testing.T) {
 		{
 			name: "CodeWithComments",
 			inputString: `// This is some description
-			for blah { s = "some string"} `,
+			for blah { s = "some string"}
+			// last line is a comment and there is no newline`,
 			expectedTokens: []Token{
 				{TType: For, Lexeme: "for", LineNo: 2},
 				{TType: Identifier, Lexeme: "blah", LineNo: 2},
@@ -122,12 +123,12 @@ func TestLexer(t *testing.T) {
 			var gotErr error
 
 			for {
-				tok, done, err := lexer.EmitToken()
+				tok, err := lexer.EmitToken()
 				if err != nil {
 					gotErr = err
 					break
 				}
-				if done {
+				if tok.TType == Eof {
 					break
 				}
 				tokens = append(tokens, tok)
