@@ -434,9 +434,14 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 }
 
 func (l *Lexer) Peek() (t Token, e error) {
+	if l.buffer.TType != Undefined {
+		t = l.buffer
+		return
+	}
 	t, e = l.EmitToken()
 	if e != nil {
-		l.buffer = t
+		return
 	}
+	l.buffer = t
 	return
 }
