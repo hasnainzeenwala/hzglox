@@ -29,6 +29,9 @@ func TestLexer(t *testing.T) {
 					LineNo: 1,
 					Literal: "Hello, World!",
 				},
+				{
+					TType: Eof,
+				},
 			},
 		},
 		{
@@ -76,6 +79,7 @@ func TestLexer(t *testing.T) {
 				{TType: Identifier, Lexeme: "y", LineNo: 7},
 				{TType: RightBrace, Lexeme: "}", LineNo: 8},
 				{TType: RightBrace, Lexeme: "}", LineNo: 9},
+				{TType: Eof},
 			},
 		},
 		{
@@ -91,6 +95,7 @@ func TestLexer(t *testing.T) {
 				{TType: Equal, Lexeme: "=", LineNo: 2},
 				{TType: String, Lexeme: "\"some string\"", LineNo: 2, Literal: "some string"},
 				{TType: RightBrace, Lexeme: "}", LineNo: 2},
+				{TType: Eof},
 			},
 		},
 		{
@@ -110,7 +115,7 @@ func TestLexer(t *testing.T) {
 			expectedErr: (&Lexer{lineNo: 3}).newError(
 				"reading string literal",
 				0,
-				"\"forgot to close }\x00",
+				"\"forgot to close }",
 				"did not find closing quote",
 				nil,
 			),
@@ -128,10 +133,10 @@ func TestLexer(t *testing.T) {
 					gotErr = err
 					break
 				}
+				tokens = append(tokens, tok)
 				if tok.TType == Eof {
 					break
 				}
-				tokens = append(tokens, tok)
 			}
 
 			if !reflect.DeepEqual(tokens, tt.expectedTokens) {

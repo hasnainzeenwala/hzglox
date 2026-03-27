@@ -16,20 +16,20 @@ func NewStringToChars(line string) *StringToChars {
 	return &StringToChars{line: line, p: 0}
 }
 
-func (s *StringToChars) GetNextChar() (val byte, hasNext bool, err error) {
+func (s *StringToChars) GetNextChar() (val byte, eof bool, err error) {
 	if s.p >= len(s.line) {
-		return byte(0), false, nil
+		return byte(0), true, nil
 	}
 	ch := s.line[s.p]
 	s.p++
-	return ch, s.p < len(s.line), nil
+	return ch, false, nil
 }
 
-func (s *StringToChars) PeekNextChar() (ch byte, err error) {
+func (s *StringToChars) PeekNextChar() (ch byte, eof bool, err error) {
 	if s.p >= len(s.line) {
-		return byte(0), nil
+		return byte(0), true, nil
 	}
-	return s.line[s.p], nil
+	return s.line[s.p], false, nil
 }
 
 type FileCharSource struct {
@@ -42,26 +42,26 @@ func NewFileCharSource(file *os.File) *FileCharSource {
 	}
 }
 
-func (f *FileCharSource) GetNextChar() (val byte, hasNext bool, err error) {
+func (f *FileCharSource) GetNextChar() (val byte, eof bool, err error) {
 	ch, err := f.reader.ReadByte()
 	if err == io.EOF {
-		return byte(0), false, nil
+		return byte(0), true, nil
 	}
 	if err != nil {
 		return byte(0), false, err
 	}
-	return ch, true, nil
+	return ch, false, nil
 }
 
-func (f *FileCharSource) PeekNextChar() (ch byte, err error) {
+func (f *FileCharSource) PeekNextChar() (ch byte, eof bool, err error) {
 	bytes, err := f.reader.Peek(1)
 	if err == io.EOF {
-		return byte(0), nil
+		return byte(0), true, nil
 	}
 	if err != nil {
-		return byte(0), err
+		return byte(0), false, err
 	}
-	return bytes[0], nil
+	return bytes[0], false, nil
 }
 
 type LineReader struct {

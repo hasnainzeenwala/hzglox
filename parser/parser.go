@@ -29,7 +29,18 @@ func NewParser(l *lexer.Lexer) *Parser{
 }
 
 func (p *Parser) Parse() (Expr, error) {
-	return p.expression()
+	expr, err := p.expression()
+	if err != nil {
+		return expr, err
+	}
+	pt, e := p.l.Peek()
+	if e != nil {
+		return expr, e
+	}
+	if pt.TType != lexer.Eof {
+		return expr, fmt.Errorf("Encountered an unparsable lexeme (%v)", pt)
+	}
+	return expr, err
 }
 
 func (p *Parser) expression() (Expr, error) {

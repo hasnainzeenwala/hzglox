@@ -7,8 +7,8 @@ import (
 )
 
 type CharSource interface {
-	GetNextChar() (val byte, hasNext bool, err error)
-	PeekNextChar() (val byte, err error)
+	GetNextChar() (val byte, eof bool, err error)
+	PeekNextChar() (val byte, eof bool, err error)
 }
 
 type Lexer struct {
@@ -47,16 +47,15 @@ func (l *Lexer) newError(action string, ch byte, lexeme string, reason string, c
 
 func (l *Lexer) PrintAllChars() error {
 	for {
-		ch, hasNext, err := l.source.GetNextChar()
+		ch, eof, err := l.source.GetNextChar()
 		if err != nil {
 			return err
 		}
-
-		fmt.Printf("%c", ch)
-
-		if !hasNext {
+		if eof {
 			return nil
 		}
+
+		fmt.Printf("%c", ch)
 	}
 }
 
@@ -71,13 +70,22 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 	var err error
 
 
-	// skip whitespace before starting, and load the first character
+	// skip whitespace before starting.
+	// If you find eof return that
+	// else load the first character
 	SkipWhiteSpace:
 	for {
-		ch, _, err = l.source.GetNextChar()
+		var eof bool
+		ch, eof, err = l.source.GetNextChar()
 		if err != nil {
 			t = Token{}
 			e = l.newError("reading next character", ch, lexeme.String(), "failed to get next character", err)
+			return
+		}
+		if eof {
+			t = Token{
+				TType: Eof,
+			}
 			return
 		}
 		switch ch {
@@ -91,14 +99,6 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 
 	lexeme.WriteByte(ch)
 	switch {
-	// ****************************
-	// EOF
-	// ****************************
-	case ch == 0:
-		t = Token{
-			TType: Eof,
-		}
-	
 	// ******************************
 	// ALl single char tokens
 	// ******************************
@@ -158,16 +158,16 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 		}
 	case ch == '/':
 		// need to handle the comments case
-		nextCh, err := l.source.PeekNextChar()
+		nextCh, eof, err := l.source.PeekNextChar()
 		if err != nil {
 			e = l.newError("peeking after slash", ch, lexeme.String(), "failed to peek next character", err)
 			return
 		}
 		if nextCh == '/' {
 			// keep consuming till the end of line because it's a comment
-			for nextCh, err = l.source.PeekNextChar();
-				nextCh != '\n' && err == nil && nextCh != 0;
-				nextCh, err = l.source.PeekNextChar() {
+			for nextCh, eof, err = l.source.PeekNextChar();
+				nextCh != '\n' && err == nil && !eof;
+				nextCh, eof, err = l.source.PeekNextChar() {
 				
 				_, _, err = l.source.GetNextChar()
 			}
@@ -195,7 +195,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 	// Double or single char special char lexemes
 	// **********************************************
 	case ch == '!':
-		nextCh, err := l.source.PeekNextChar()
+		nextCh, _, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after bang", ch, lexeme.String(), "failed to peek next character", err)
 			return
@@ -221,7 +221,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 		}
 	case ch == '=':
-		nextCh, err := l.source.PeekNextChar()
+		nextCh, _, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after equal", ch, lexeme.String(), "failed to peek next character", err)
 			return
@@ -247,7 +247,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 		}
 	case ch == '<':
-		nextCh, err := l.source.PeekNextChar()
+		nextCh, _, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after less-than", ch, lexeme.String(), "failed to peek next character", err)
 			return
@@ -273,7 +273,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 		}
 	case ch == '>':
-		nextCh, err := l.source.PeekNextChar()
+		nextCh, _, err := l.source.PeekNextChar()
 		if err != nil{
 			e = l.newError("peeking after greater-than", ch, lexeme.String(), "failed to peek next character", err)
 			return
@@ -312,11 +312,11 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 
 		// Keep adding characters to the lexeme till you are finding numbers
 		// or 1 period
-		for nextCh, err = l.source.PeekNextChar();
+		for nextCh, _, err = l.source.PeekNextChar();
 			((nextCh >= '0' && nextCh <= '9') ||
 				(nextCh == '.' && sawAPeriod == false)) &&
 			(err == nil); 
-			nextCh, err = l.source.PeekNextChar() {
+			nextCh, _, err = l.source.PeekNextChar() {
 			ch, _, err = l.source.GetNextChar()
 			if ch == '.' {
 				sawAPeriod = true
@@ -354,16 +354,17 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 	case ch == '"':
 		beginningLineNo := l.lineNo
 		for {
-			ch, _, err = l.source.GetNextChar()
+			var eof bool
+			ch, eof, err = l.source.GetNextChar()
 			if err != nil {
 				e = l.newError("reading string literal", ch, lexeme.String(), "failed to get next character", err)
 				return
 			}
-			lexeme.WriteByte(ch)
-			if ch == 0 {
+			if eof {
 				e = l.newError("reading string literal", ch, lexeme.String(), "did not find closing quote", nil)
 				return
 			}
+			lexeme.WriteByte(ch)
 			if ch == '"' {
 				break
 			}
@@ -388,14 +389,14 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 	// Then check if it is a reserved keyword
 	case (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
 		for {
-			nextCh, err := l.source.PeekNextChar()
+			nextCh, _, err := l.source.PeekNextChar()
 			if err != nil {
 				e = l.newError("peeking identifier continuation", ch, lexeme.String(), "failed to peek next character", err)
 				return
 			}
 
-			if (nextCh >= 'a' && nextCh <= 'z') || (nextCh >= 'A' && nextCh <= 'Z') ||
-				(nextCh == '_') || (nextCh >= '0' && nextCh <= '9') {
+			if ((nextCh >= 'a' && nextCh <= 'z') || (nextCh >= 'A' && nextCh <= 'Z') ||
+				(nextCh == '_') || (nextCh >= '0' && nextCh <= '9')) {
 			
 				ch, _, err = l.source.GetNextChar()
 				if err != nil {
