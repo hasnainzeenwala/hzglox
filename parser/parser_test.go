@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hasnainzeenwala/hzglox/lexer"
@@ -12,6 +13,7 @@ func TestParser(t *testing.T) {
 		name        string
 		program     string
 		expectedAst string	
+		e           error
 	}
 
 	for _, r := range []testCase {
@@ -19,23 +21,33 @@ func TestParser(t *testing.T) {
 			"sanity",
 			`1 + 1 == 2`,
 			`( == ( + 1 1 ) 2 )`,
+			nil,
 		},
 		{
 			"more complex",
 			` 3 < 2 + -4 == 7 < (8 == 9)`,
 			`( == ( < 3 ( + 2 ( -4 ) ) ) ( < 7 ( group ( == 8 9 ) ) ) )`,
-
+			nil,
+		},
+		{
+			"Whole expression can't be parsed",
+			`3 < 2 {`,
+			`( < 3 2 )`,
+			fmt.Errorf("Encountered an unparsable lexeme (Type: LeftBrace Lexeme: { LineNo: 1)"),
 		},
 	} {
 		t.Run(r.name, func(t *testing.T) {
 			p := NewParser(lexer.NewLexer(sources.NewStringToChars(r.program)))
 			tree, err := p.Parse()
-			if err != nil {
+			if r.e == nil && err != nil {
 				t.Fatalf("unexpected error = %v", err)
 			}
 			gotAst := tree.PrintAst()
 			if gotAst != r.expectedAst {
 				t.Fatalf("Expected ast = %s . Got = %s", r.expectedAst, gotAst)
+			}
+			if r.e != nil && r.e.Error() != err.Error() {
+				t.Fatalf("Expected error = %q got = %q", r.e, err)
 			}
 		})
 	}

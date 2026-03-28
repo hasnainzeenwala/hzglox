@@ -174,5 +174,9 @@ func NewToken(ttype TokenType, lexeme string, lineNo int, literal any) Token {
 }
 
 func (t Token) String() string {
-	return fmt.Sprintf("%s %s %s", t.TType, t.Lexeme, t.Literal)
+	if t.Literal != nil {
+		return fmt.Sprintf("Type: %s Lexeme: %s Literal: %s LineNo: %d", t.TType, t.Lexeme, t.Literal, t.LineNo)
+	} else {
+		return fmt.Sprintf("Type: %s Lexeme: %s LineNo: %d", t.TType, t.Lexeme, t.LineNo)
+	}
 }
