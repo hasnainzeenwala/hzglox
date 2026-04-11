@@ -33,14 +33,25 @@ func (p *Parser) Parse() (Expr, error) {
 	if err != nil {
 		return expr, err
 	}
+	t, err := p.firstUnparsedToken()
+	if err != nil {
+		return expr, fmt.Errorf("Encountered unexpected error while checking if any tokens are left for parsing (%w)", err)
+	}
+	if t != nil {
+		return expr, fmt.Errorf("Encountered an unparseable token (%v)", *t)
+	}
+	return expr, nil
+}
+
+func (p *Parser) firstUnparsedToken() (*lexer.Token, error) {
 	pt, e := p.l.Peek()
 	if e != nil {
-		return expr, e
+		return nil, e
 	}
 	if pt.TType != lexer.Eof {
-		return expr, fmt.Errorf("Encountered an unparsable lexeme (%v)", pt)
+		return &pt, nil
 	}
-	return expr, err
+	return nil, nil
 }
 
 func (p *Parser) expression() (Expr, error) {
