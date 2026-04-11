@@ -33,7 +33,7 @@ func TestParser(t *testing.T) {
 			"Whole expression can't be parsed",
 			`3 < 2 {`,
 			`( < 3 2 )`,
-			fmt.Errorf("Encountered an unparseable token (Type: LeftBrace Lexeme: { LineNo: 1)"),
+			fmt.Errorf("Parsing failed: Encountered an unparseable token (Type: LeftBrace Lexeme: { LineNo: 1)"),
 		},
 	} {
 		t.Run(r.name, func(t *testing.T) {

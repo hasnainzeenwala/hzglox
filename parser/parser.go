@@ -29,29 +29,22 @@ func NewParser(l *lexer.Lexer) *Parser {
 }
 
 func (p *Parser) Parse() (Expr, error) {
+	// begin parsing from the topmost rule
 	expr, err := p.expression()
 	if err != nil {
 		return expr, err
 	}
-	t, err := p.firstUnparsedToken()
+
+	// Check what are the remaining tokens
+	// Expectation is that only EOF should be remaining
+	t, err := p.l.FetchNextToken()
 	if err != nil {
 		return expr, fmt.Errorf("Encountered unexpected error while checking if any tokens are left for parsing (%w)", err)
 	}
-	if t != nil {
-		return expr, fmt.Errorf("Encountered an unparseable token (%v)", *t)
+	if t.TType != lexer.Eof {
+		return expr, fmt.Errorf("Parsing failed: Encountered an unparseable token (%v)", t)
 	}
 	return expr, nil
-}
-
-func (p *Parser) firstUnparsedToken() (*lexer.Token, error) {
-	pt, e := p.l.Peek()
-	if e != nil {
-		return nil, e
-	}
-	if pt.TType != lexer.Eof {
-		return &pt, nil
-	}
-	return nil, nil
 }
 
 func (p *Parser) expression() (Expr, error) {
