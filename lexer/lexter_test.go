@@ -7,13 +7,14 @@ import (
 	"github.com/hasnainzeenwala/hzglox/sources"
 )
 
+type testCase struct {
+	name           string
+	inputString    string
+	expectedTokens []Token
+	expectedErr    error
+}
+
 func TestLexer(t *testing.T) {
-	type testCase struct {
-		name           string
-		inputString    string
-		expectedTokens []Token
-		expectedErr    error
-	}
 	for _, tt := range []testCase{
 		{
 			name:        "sanity",
@@ -157,5 +158,61 @@ func TestLexer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCallingEmitTokenMultipleTimesAfterAllTokensAreEmittedShouldYieldEOF(t *testing.T) {
+	tt := testCase{
+		name:        "CallingEmitTokenMultipleTimesAfterAllTokensAreEmittedShouldYieldEOF",
+		inputString: `print "Hello, World!"`,
+		expectedTokens: []Token{
+			{
+				TType:  Print,
+				Lexeme: "print",
+				LineNo: 1,
+			},
+			{
+				TType:   String,
+				Lexeme:  "\"Hello, World!\"",
+				LineNo:  1,
+				Literal: "Hello, World!",
+			},
+			{
+				TType: Eof,
+			},
+			{
+				TType: Eof,
+			},
+			{
+				TType: Eof,
+			},
+		},
+	}
+
+	chars := sources.NewStringToChars(tt.inputString)
+	lexer := NewLexer(chars)
+	tokens := make([]Token, 0)
+	var gotErr error
+
+	count := 0
+	for count < 3 {
+		tok, err := lexer.FetchNextToken()
+		if err != nil {
+			gotErr = err
+			break
+		}
+		tokens = append(tokens, tok)
+		if tok.TType == Eof {
+			count++
+		}
+	}
+	if tt.expectedErr == nil {
+		if gotErr != nil {
+			t.Fatalf("unexpected error = %v", gotErr)
+		}
+	} 
+
+	if !reflect.DeepEqual(tokens, tt.expectedTokens) {
+		t.Fatalf("tokens mismatch\n got: %#v\nwant: %#v", tokens, tt.expectedTokens)
 	}
 }
