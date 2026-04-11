@@ -59,16 +59,14 @@ func (l *Lexer) PrintAllChars() error {
 	}
 }
 
-func (l *Lexer) EmitToken() (t Token, e error) {
-	if l.buffer.TType != Undefined {
-		t = l.buffer
-		l.buffer = Token{}
+func (l *Lexer) FetchNextToken() (t Token, e error) {
+	if pt, hasToken := l.popFromPrefetchBuffer(); hasToken {
+		t = pt
 		return
 	}
 	var lexeme strings.Builder
 	var ch byte
 	var err error
-
 
 	// skip whitespace before starting.
 	// If you find eof return that
@@ -104,7 +102,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 	// ******************************
 	case ch == '(':
 		t = Token{
-			TType: LeftParen,
+			TType:  LeftParen,
 			Lexeme: lexeme.String(),
 			LineNo: l.lineNo,
 		}
@@ -165,10 +163,8 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 		}
 		if nextCh == '/' {
 			// keep consuming till the end of line because it's a comment
-			for nextCh, eof, err = l.source.PeekNextChar();
-				nextCh != '\n' && err == nil && !eof;
-				nextCh, eof, err = l.source.PeekNextChar() {
-				
+			for nextCh, eof, err = l.source.PeekNextChar(); nextCh != '\n' && err == nil && !eof; nextCh, eof, err = l.source.PeekNextChar() {
+
 				_, _, err = l.source.GetNextChar()
 			}
 			if err != nil {
@@ -176,7 +172,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 				return
 			}
 			// Code comment is not a token so we call EmitToken() again to get the next valid token
-			return l.EmitToken()
+			return l.FetchNextToken()
 		} else {
 			t = Token{
 				TType:  Slash,
@@ -190,13 +186,13 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			Lexeme: lexeme.String(),
 			LineNo: l.lineNo,
 		}
-	
+
 	// **********************************************
 	// Double or single char special char lexemes
 	// **********************************************
 	case ch == '!':
 		nextCh, _, err := l.source.PeekNextChar()
-		if err != nil{
+		if err != nil {
 			e = l.newError("peeking after bang", ch, lexeme.String(), "failed to peek next character", err)
 			return
 		}
@@ -209,20 +205,20 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 			lexeme.WriteByte(ch)
 			t = Token{
-				TType: BangEqual,
+				TType:  BangEqual,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		} else {
 			t = Token{
-				TType: Bang,
+				TType:  Bang,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		}
 	case ch == '=':
 		nextCh, _, err := l.source.PeekNextChar()
-		if err != nil{
+		if err != nil {
 			e = l.newError("peeking after equal", ch, lexeme.String(), "failed to peek next character", err)
 			return
 		}
@@ -235,20 +231,20 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 			lexeme.WriteByte(ch)
 			t = Token{
-				TType: EqualEqual,
+				TType:  EqualEqual,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		} else {
 			t = Token{
-				TType: Equal,
+				TType:  Equal,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		}
 	case ch == '<':
 		nextCh, _, err := l.source.PeekNextChar()
-		if err != nil{
+		if err != nil {
 			e = l.newError("peeking after less-than", ch, lexeme.String(), "failed to peek next character", err)
 			return
 		}
@@ -261,20 +257,20 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 			lexeme.WriteByte(ch)
 			t = Token{
-				TType: LessEqual,
+				TType:  LessEqual,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		} else {
 			t = Token{
-				TType: Less,
+				TType:  Less,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		}
 	case ch == '>':
 		nextCh, _, err := l.source.PeekNextChar()
-		if err != nil{
+		if err != nil {
 			e = l.newError("peeking after greater-than", ch, lexeme.String(), "failed to peek next character", err)
 			return
 		}
@@ -287,13 +283,13 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 			}
 			lexeme.WriteByte(ch)
 			t = Token{
-				TType: GreaterEqual,
+				TType:  GreaterEqual,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
 		} else {
 			t = Token{
-				TType: Greater,
+				TType:  Greater,
 				Lexeme: lexeme.String(),
 				LineNo: l.lineNo,
 			}
@@ -312,11 +308,9 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 
 		// Keep adding characters to the lexeme till you are finding numbers
 		// or 1 period
-		for nextCh, _, err = l.source.PeekNextChar();
-			((nextCh >= '0' && nextCh <= '9') ||
-				(nextCh == '.' && sawAPeriod == false)) &&
-			(err == nil); 
-			nextCh, _, err = l.source.PeekNextChar() {
+		for nextCh, _, err = l.source.PeekNextChar(); ((nextCh >= '0' && nextCh <= '9') ||
+			(nextCh == '.' && sawAPeriod == false)) &&
+			(err == nil); nextCh, _, err = l.source.PeekNextChar() {
 			ch, _, err = l.source.GetNextChar()
 			if ch == '.' {
 				sawAPeriod = true
@@ -330,7 +324,7 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 
 		// for the lexeme to be a valid literal the last char has to be a number
 		lexemeVal := lexeme.String()
-		lastCh := lexemeVal[len(lexemeVal) - 1]
+		lastCh := lexemeVal[len(lexemeVal)-1]
 		if !(lastCh >= '0' && lastCh <= '9') {
 			e = l.newError("validating number literal", lastCh, lexemeVal, "a valid number must end with a digit", nil)
 			return
@@ -342,9 +336,9 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 		}
 
 		t = Token{
-			TType: Number,
-			LineNo: l.lineNo,
-			Lexeme: lexemeVal,
+			TType:   Number,
+			LineNo:  l.lineNo,
+			Lexeme:  lexemeVal,
 			Literal: f,
 		}
 
@@ -375,16 +369,16 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 		literal := ""
 		lexemeStr := lexeme.String()
 		if len(lexemeStr) > 2 {
-			literal = lexemeStr[1:(len(lexemeStr)-1)]	
+			literal = lexemeStr[1:(len(lexemeStr) - 1)]
 		}
 
 		t = Token{
-			TType: String,
-			LineNo: beginningLineNo,
+			TType:   String,
+			LineNo:  beginningLineNo,
 			Literal: literal,
-			Lexeme: lexeme.String(),
+			Lexeme:  lexeme.String(),
 		}
-	
+
 	// If it starts with a letter keep going till you have alph-numerics
 	// Then check if it is a reserved keyword
 	case (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
@@ -395,9 +389,9 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 				return
 			}
 
-			if ((nextCh >= 'a' && nextCh <= 'z') || (nextCh >= 'A' && nextCh <= 'Z') ||
-				(nextCh == '_') || (nextCh >= '0' && nextCh <= '9')) {
-			
+			if (nextCh >= 'a' && nextCh <= 'z') || (nextCh >= 'A' && nextCh <= 'Z') ||
+				(nextCh == '_') || (nextCh >= '0' && nextCh <= '9') {
+
 				ch, _, err = l.source.GetNextChar()
 				if err != nil {
 					e = l.newError("reading identifier continuation", ch, lexeme.String(), "failed to consume identifier character", err)
@@ -411,19 +405,18 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 		lexemeStr := lexeme.String()
 		if tp, ok := Keywords[lexemeStr]; ok {
 			t = Token{
-				TType: tp,
+				TType:  tp,
 				Lexeme: lexemeStr,
 				LineNo: l.lineNo,
 			}
 		} else {
 			t = Token{
-				TType: Identifier,
+				TType:  Identifier,
 				Lexeme: lexemeStr,
 				LineNo: l.lineNo,
 			}
 		}
 
-	
 	// *******************************
 	// Unidentified
 	// *******************************
@@ -435,14 +428,29 @@ func (l *Lexer) EmitToken() (t Token, e error) {
 }
 
 func (l *Lexer) Peek() (t Token, e error) {
-	if l.buffer.TType != Undefined {
-		t = l.buffer
+	if pt, hasToken := l.viewPreFetchBuffer(); hasToken{
+		t = pt
+		return
+	} else {
+		t, e = l.FetchNextToken()
+		if e != nil {
+			return
+		}
+		l.setInPrefetchBuffer(t)
 		return
 	}
-	t, e = l.EmitToken()
-	if e != nil {
-		return
-	}
+}
+
+func (l *Lexer) popFromPrefetchBuffer() (Token, bool) {
+	t := l.buffer
+	l.buffer = Token{}
+	return t, t.TType != Undefined
+}
+
+func (l *Lexer) viewPreFetchBuffer() (Token, bool) {
+	return l.buffer, l.buffer.TType != Undefined
+}
+
+func (l *Lexer) setInPrefetchBuffer(t Token) {
 	l.buffer = t
-	return
 }

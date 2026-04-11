@@ -3,30 +3,31 @@ package lexer
 import (
 	"reflect"
 	"testing"
+
 	"github.com/hasnainzeenwala/hzglox/sources"
 )
 
 func TestLexer(t *testing.T) {
 	type testCase struct {
-		name string
-		inputString string
+		name           string
+		inputString    string
 		expectedTokens []Token
-		expectedErr error
+		expectedErr    error
 	}
-	for _, tt := range []testCase {
+	for _, tt := range []testCase{
 		{
-			name: "sanity",
+			name:        "sanity",
 			inputString: `print "Hello, World!"`,
 			expectedTokens: []Token{
 				{
-					TType: Print,
+					TType:  Print,
 					Lexeme: "print",
 					LineNo: 1,
 				},
 				{
-					TType: String,
-					Lexeme: "\"Hello, World!\"",
-					LineNo: 1,
+					TType:   String,
+					Lexeme:  "\"Hello, World!\"",
+					LineNo:  1,
 					Literal: "Hello, World!",
 				},
 				{
@@ -128,7 +129,7 @@ func TestLexer(t *testing.T) {
 			var gotErr error
 
 			for {
-				tok, err := lexer.EmitToken()
+				tok, err := lexer.FetchNextToken()
 				if err != nil {
 					gotErr = err
 					break

@@ -24,7 +24,7 @@ type Parser struct {
 	l *lexer.Lexer
 }
 
-func NewParser(l *lexer.Lexer) *Parser{
+func NewParser(l *lexer.Lexer) *Parser {
 	return &Parser{l}
 }
 
@@ -90,7 +90,7 @@ func (p *Parser) term() (Expr, error) {
 }
 
 func (p *Parser) factor() (Expr, error) {
-	ops := []lexer.Token {
+	ops := []lexer.Token{
 		{
 			TType: lexer.Star,
 		},
@@ -108,11 +108,11 @@ func (p *Parser) unary() (Expr, error) {
 	}
 	switch pl.TType {
 	case lexer.Bang, lexer.Minus:
-		t, err := p.l.EmitToken()
+		t, err := p.l.FetchNextToken()
 		if err != nil {
 			return nil, err
 		}
-		r, err := p.unary() 
+		r, err := p.unary()
 		if err != nil {
 			return nil, err
 		}
@@ -126,11 +126,11 @@ func (p *Parser) unary() (Expr, error) {
 }
 
 func (p *Parser) primary() (Expr, error) {
-	t, err := p.l.EmitToken()
+	t, err := p.l.FetchNextToken()
 	if err != nil {
 		return nil, err
 	}
-	switch t.TType{
+	switch t.TType {
 	case lexer.Number, lexer.String, lexer.Nil, lexer.True, lexer.False:
 		return &Literal{
 			T: t,
@@ -141,7 +141,7 @@ func (p *Parser) primary() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		t, err = p.l.EmitToken()
+		t, err = p.l.FetchNextToken()
 		if t.TType != lexer.RightParen {
 			return nil, fmt.Errorf("Expected Right Paren ')' at the end of the expression but found %s instead", t)
 		}
@@ -169,11 +169,11 @@ func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, 
 
 		// If token type doesn't match we are done and can return the parsed expression thusfar
 		if !tokenTypeMatches(pl, op) {
-			return left, nil	
+			return left, nil
 		}
 
 		// Else we create a binary expression
-		op, err := p.l.EmitToken()
+		op, err := p.l.FetchNextToken()
 		if err != nil {
 			return left, err
 		}
@@ -192,7 +192,7 @@ func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, 
 	}
 }
 
-func tokenTypeMatches(pl lexer.Token, l[]lexer.Token) bool{
+func tokenTypeMatches(pl lexer.Token, l []lexer.Token) bool {
 	for _, t := range l {
 		if pl.TType == t.TType {
 			return true
