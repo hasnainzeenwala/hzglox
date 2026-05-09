@@ -8,17 +8,28 @@ import (
 
 // Lox expression grammar
 // Unambiguous and left recursion removed.
+// "expression" is the starting rule of the grammar
 // **********************************************************************************
 //
-// expression   ->  equal
-// equal        ->  comparison (("==" | "!=") comparison)*
-// comparison   ->  term ( ("<" | "<=" | ">" | ">=") term )*
-// term         ->  factor (( "+" | "-" ) factor)*
-// factor       ->  unary (("*" | "/") unary)*
-// unary        ->  ("-" | "!") unary | primary
-// primary      ->  NUMBER | STRING | true | false | nil | "(" expression ")" ;
+// -> expression   ->  equal
+//    equal        ->  comparison (("==" | "!=") comparison)*
+//    comparison   ->  term ( ("<" | "<=" | ">" | ">=") term )*
+//    term         ->  factor (( "+" | "-" ) factor)*
+//    factor       ->  unary (("*" | "/") unary)*
+//    unary        ->  ("-" | "!") unary | primary
+//    primary      ->  NUMBER | STRING | true | false | nil | "(" expression ")" ;
 //
 // **********************************************************************************
+// Parser is a recursive descent parser
+// Our grammar is unambiguous and the left-recursion is removed.
+// Every non-terminal/rule shall have its own parsing function. It will be named 'parse<rulename>rule()'
+// The recipe to create the parsing function is the following. Read the rule from left to right.
+// If you encounter a non-terminal, call the corresponding function for that non-terminal,
+// if you encounter a terminal parse it appropriately. The rule might have '|' which is the OR operator,
+// so deal with the terminals accordingly. Keep proceeding by matching the terminals and calling the functions for non-terminals
+// in a similar fashion till the rule is done.
+// For some of the rules, a generic function has been created since all of them had a very similar structure.
+// But the generic function follows the same idea described above.
 
 type Parser struct {
 	l *lexer.Lexer
@@ -30,7 +41,7 @@ func NewParser(l *lexer.Lexer) *Parser {
 
 func (p *Parser) Parse() (Expr, error) {
 	// begin parsing from the topmost rule
-	expr, err := p.expression()
+	expr, err := p.parseExpressionRule()
 	if err != nil {
 		return expr, err
 	}
@@ -47,11 +58,11 @@ func (p *Parser) Parse() (Expr, error) {
 	return expr, nil
 }
 
-func (p *Parser) expression() (Expr, error) {
-	return p.equal()
+func (p *Parser) parseExpressionRule() (Expr, error) {
+	return p.parseEqualRule()
 }
 
-func (p *Parser) equal() (Expr, error) {
+func (p *Parser) parseEqualRule() (Expr, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.EqualEqual,
@@ -60,10 +71,10 @@ func (p *Parser) equal() (Expr, error) {
 			TType: lexer.BangEqual,
 		},
 	}
-	return p.binFOpfRepeat(p.comparison, ops)
+	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseComparisonRule, ops)
 }
 
-func (p *Parser) comparison() (Expr, error) {
+func (p *Parser) parseComparisonRule() (Expr, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Less,
@@ -78,10 +89,10 @@ func (p *Parser) comparison() (Expr, error) {
 			TType: lexer.GreaterEqual,
 		},
 	}
-	return p.binFOpfRepeat(p.term, ops)
+	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseTermRule, ops)
 }
 
-func (p *Parser) term() (Expr, error) {
+func (p *Parser) parseTermRule() (Expr, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Plus,
@@ -90,10 +101,10 @@ func (p *Parser) term() (Expr, error) {
 			TType: lexer.Minus,
 		},
 	}
-	return p.binFOpfRepeat(p.factor, ops)
+	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseFactorRule, ops)
 }
 
-func (p *Parser) factor() (Expr, error) {
+func (p *Parser) parseFactorRule() (Expr, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Star,
@@ -102,10 +113,10 @@ func (p *Parser) factor() (Expr, error) {
 			TType: lexer.Slash,
 		},
 	}
-	return p.binFOpfRepeat(p.unary, ops)
+	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseUnaryRule, ops)
 }
 
-func (p *Parser) unary() (Expr, error) {
+func (p *Parser) parseUnaryRule() (Expr, error) {
 	pl, err := p.l.Peek()
 	if err != nil {
 		return nil, err
@@ -116,7 +127,7 @@ func (p *Parser) unary() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		r, err := p.unary()
+		r, err := p.parseUnaryRule()
 		if err != nil {
 			return nil, err
 		}
@@ -125,11 +136,11 @@ func (p *Parser) unary() (Expr, error) {
 			E: r,
 		}, nil
 	default:
-		return p.primary()
+		return p.parsePrimaryRule()
 	}
 }
 
-func (p *Parser) primary() (Expr, error) {
+func (p *Parser) parsePrimaryRule() (Expr, error) {
 	t, err := p.l.FetchNextToken()
 	if err != nil {
 		return nil, err
@@ -141,7 +152,7 @@ func (p *Parser) primary() (Expr, error) {
 		}, nil
 
 	case lexer.LeftParen:
-		exp, err := p.expression()
+		exp, err := p.parseExpressionRule()
 		if err != nil {
 			return nil, err
 		}
@@ -160,11 +171,20 @@ func (p *Parser) primary() (Expr, error) {
 // NT -> X ((op1 | op2 ...) X)*
 // *********************************************************
 // X can be a terminal or non terminal
-func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, error) {
-	left, err := f()
+func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Expr, error), op []lexer.Token) (Expr, error) {
+	// F represents the function meant to parse "X"
+	left, err := parseX()
 	if err != nil {
 		return nil, err
 	}
+	// General parsing strategy is of creating a left associative tree.
+	// Above, X was already parsed. Now the next token shall be checked if it is
+	// of the appropriate type. If it doesn't match, our parsing is done and we return.
+	// Otherwise we consume it and then we again call "f" because the next part is expected to be "X".
+	// Once X is parsed, we have a binary expression of the form  {X op X}.
+	// We push this to the left (lets call it "W") and proceed ahead, trying to parse the next "op X".
+	// Once it is parsed, the new expression will be {W op X}. Then this expression will be pushed to the left
+	// and the new "op X" will be parsed. Convince yourself that this leads to a left associative tree.
 	for {
 		pl, err := p.l.Peek()
 		if err != nil {
@@ -172,7 +192,7 @@ func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, 
 		}
 
 		// If token type doesn't match we are done and can return the parsed expression thusfar
-		if !tokenTypeMatches(pl, op) {
+		if !tokenTypeIsOneOfTheList(pl, op) {
 			return left, nil
 		}
 
@@ -181,7 +201,7 @@ func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, 
 		if err != nil {
 			return left, err
 		}
-		r, err := f()
+		r, err := parseX()
 		if err != nil {
 			return left, err
 		}
@@ -196,7 +216,7 @@ func (p *Parser) binFOpfRepeat(f func() (Expr, error), op []lexer.Token) (Expr, 
 	}
 }
 
-func tokenTypeMatches(pl lexer.Token, l []lexer.Token) bool {
+func tokenTypeIsOneOfTheList(pl lexer.Token, l []lexer.Token) bool {
 	for _, t := range l {
 		if pl.TType == t.TType {
 			return true
