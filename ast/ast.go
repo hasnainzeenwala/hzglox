@@ -269,33 +269,6 @@ func (b *Binary) Interpret() (any, error) {
 // =======================================================================================
 // Helper functions
 // =======================================================================================
-func IsLiteral(t lexer.Token) bool {
-	return t.TType == lexer.Number || t.TType == lexer.String ||
-		t.TType == lexer.True || t.TType == lexer.False || t.TType == lexer.Nil
-}
-
-func IsLeftParen(t lexer.Token) bool {
-	return t.TType == lexer.LeftParen
-}
-
-func IsRightParen(t lexer.Token) bool {
-	return t.TType == lexer.RightParen
-}
-
-func IsMinus(t lexer.Token) bool {
-	return t.TType == lexer.Minus
-}
-
-func IsBang(t lexer.Token) bool {
-	return t.TType == lexer.Bang
-}
-
-func IsOperator(t lexer.Token) bool {
-	return t.TType == lexer.EqualEqual || t.TType == lexer.BangEqual ||
-		t.TType == lexer.Less || t.TType == lexer.LessEqual || t.TType == lexer.Greater ||
-		t.TType == lexer.GreaterEqual || t.TType == lexer.Star || t.TType == lexer.Minus ||
-		t.TType == lexer.Plus || t.TType == lexer.Slash
-}
 
 // Casting functions
 // -----------------------------------------------------------------------------------

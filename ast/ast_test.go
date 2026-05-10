@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hasnainzeenwala/hzglox/lexer"
@@ -62,5 +63,67 @@ func TestAstPrint(t *testing.T) {
 				t.Fatalf("PrintAst() = %q, want %q", got, tt.s)
 			}
 		})
+	}
+}
+
+// Test if a literal node evaluates to itself or not
+// Literal types:
+//    *Number
+//    *String
+//    *true
+//    *false
+//    *nil
+// 
+// If it's none of these types it should return an error
+func TestAstLiteralInterpret(t *testing.T) {
+
+	// interpreting the node should yield "expectedVal"
+	type testCase struct {
+		expectedVal  any
+		node         *LiteralNode
+		err          error
+	}
+
+	for _, tt := range []testCase{
+		{
+			expectedVal: 2.3,
+			node       : &LiteralNode{
+				T: lexer.NewToken(lexer.Number, "2.3", 1, 2.3),
+			},
+		},
+		{
+			expectedVal: "this is some string",
+			node       : &LiteralNode{
+				T: lexer.NewToken(lexer.String, "\"this is some string\"", 1, "this is some string"),
+			},
+		},
+		{
+			expectedVal: true,
+			node       : &LiteralNode{
+				T: lexer.NewToken(lexer.True, "true", 1, true),
+			},
+		},
+		{
+			expectedVal: false,
+			node       : &LiteralNode{
+				T: lexer.NewToken(lexer.False, "false", 1, false),
+			},
+		},
+		{
+			expectedVal: nil,
+			node       : &LiteralNode{
+				T: lexer.NewToken(lexer.Nil, "nil", 1, nil),
+			},
+		},
+	} {
+		if tt.err == nil {
+			gotVal, err := tt.node.Interpret()
+			if err != nil {
+				t.Fatalf("Expected no error but got: %v", err)
+			}
+			if !reflect.DeepEqual(gotVal, tt.expectedVal) {
+				t.Fatalf("Expected: %v but got: %v", tt.expectedVal, gotVal)
+			}
+		}
 	}
 }
