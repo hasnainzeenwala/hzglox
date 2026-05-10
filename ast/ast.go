@@ -6,7 +6,7 @@
 * All nodes will implement the "Node" interface
 */
 
-package parser
+package ast
 
 import (
 	"fmt"
@@ -261,8 +261,6 @@ func (b *Binary) Interpret() (any, error) {
 	default:
 		return nil , fmt.Errorf("Not a valid Binary operator %v", b.Op.TType)
 	}
-
-	return nil, nil
 }
 
 

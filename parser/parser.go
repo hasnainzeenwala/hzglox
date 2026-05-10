@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hasnainzeenwala/hzglox/lexer"
+	"github.com/hasnainzeenwala/hzglox/ast"
 )
 
 // ============================================================================================
@@ -51,7 +52,7 @@ func NewParser(l *lexer.Lexer) *Parser {
 
 // args: empty
 // result: Parse tree of the code
-func (p *Parser) Parse() (Node, error) {
+func (p *Parser) Parse() (ast.Node, error) {
 	// begin parsing from the topmost rule
 	expr, err := p.parseExpressionRule()
 	if err != nil {
@@ -79,7 +80,7 @@ func (p *Parser) Parse() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Result(equal rule)
-func (p *Parser) parseExpressionRule() (Node, error) {
+func (p *Parser) parseExpressionRule() (ast.Node, error) {
 	return p.parseEqualRule()
 }
 
@@ -87,7 +88,7 @@ func (p *Parser) parseExpressionRule() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Binary Node | Result(comparison rule)
-func (p *Parser) parseEqualRule() (Node, error) {
+func (p *Parser) parseEqualRule() (ast.Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.EqualEqual,
@@ -103,7 +104,7 @@ func (p *Parser) parseEqualRule() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Binary Node | Result(term rule)
-func (p *Parser) parseComparisonRule() (Node, error) {
+func (p *Parser) parseComparisonRule() (ast.Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Less,
@@ -125,7 +126,7 @@ func (p *Parser) parseComparisonRule() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Binary Node | Result(factor rule)
-func (p *Parser) parseTermRule() (Node, error) {
+func (p *Parser) parseTermRule() (ast.Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Plus,
@@ -141,7 +142,7 @@ func (p *Parser) parseTermRule() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Binary Node | Result (unary rule)
-func (p *Parser) parseFactorRule() (Node, error) {
+func (p *Parser) parseFactorRule() (ast.Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Star,
@@ -157,7 +158,7 @@ func (p *Parser) parseFactorRule() (Node, error) {
 // -----------------------------------------------------------------------------
 // args: Empty
 // Result: Unary Node | Result(primary rule)
-func (p *Parser) parseUnaryRule() (Node, error) {
+func (p *Parser) parseUnaryRule() (ast.Node, error) {
 	pl, err := p.l.Peek()
 	if err != nil {
 		return nil, err
@@ -172,7 +173,7 @@ func (p *Parser) parseUnaryRule() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &UnaryNode{
+		return &ast.UnaryNode{
 			T: t,
 			E: r,
 		}, nil
@@ -186,14 +187,14 @@ func (p *Parser) parseUnaryRule() (Node, error) {
 //
 // args: empty
 // Result: Literal Node | Grouping Node
-func (p *Parser) parsePrimaryRule() (Node, error) {
+func (p *Parser) parsePrimaryRule() (ast.Node, error) {
 	t, err := p.l.FetchNextToken()
 	if err != nil {
 		return nil, err
 	}
 	switch t.TType {
 	case lexer.Number, lexer.String, lexer.Nil, lexer.True, lexer.False:
-		return &LiteralNode{
+		return &ast.LiteralNode{
 			T: t,
 		}, nil
 
@@ -206,7 +207,7 @@ func (p *Parser) parsePrimaryRule() (Node, error) {
 		if t.TType != lexer.RightParen {
 			return nil, fmt.Errorf("Expected Right Paren ')' at the end of the expression but found %s instead", t)
 		}
-		return &GroupingNode{exp}, nil
+		return &ast.GroupingNode{exp}, nil
 	default:
 		return nil, fmt.Errorf("Token not recognized %s", t)
 	}
@@ -230,7 +231,7 @@ func (p *Parser) parsePrimaryRule() (Node, error) {
 //    op: list of tokens [op1, op2, .....]
 // Result:
 //    Binary tree | Result(parseX)
-func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Node, error), op []lexer.Token) (Node, error) {
+func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (ast.Node, error), op []lexer.Token) (ast.Node, error) {
 	// First parse X. This is the first "Left" expression of the binary tree
 	left, err := parseX()
 	if err != nil {
@@ -271,7 +272,7 @@ func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Node
 			return left, err
 		}
 
-		exp := &Binary{
+		exp := &ast.Binary{
 			Op: op,
 			Le: left,
 			Re: r,
