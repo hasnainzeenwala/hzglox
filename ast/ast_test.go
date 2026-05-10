@@ -36,7 +36,7 @@ func TestAstPrint(t *testing.T) {
 		},
 		{
 			name: "binary",
-			e: &Binary{
+			e: &BinaryNode{
 				Le: &LiteralNode{lexer.Token{lexer.Number, "1", 0, 1.0}},
 				Op: lexer.Token{lexer.Plus, "+", 0, nil},
 				Re: &LiteralNode{lexer.Token{lexer.Number, "2", 0, 2.0}},
@@ -45,7 +45,7 @@ func TestAstPrint(t *testing.T) {
 		},
 		{
 			name: "nested",
-			e: &Binary{
+			e: &BinaryNode{
 				Le: &UnaryNode{
 					T: lexer.Token{lexer.Minus, "-", 0, nil},
 					E: &GroupingNode{
@@ -73,8 +73,6 @@ func TestAstPrint(t *testing.T) {
 //    *true
 //    *false
 //    *nil
-// 
-// If it's none of these types it should return an error
 func TestAstLiteralInterpret(t *testing.T) {
 
 	// interpreting the node should yield "expectedVal"
@@ -125,5 +123,45 @@ func TestAstLiteralInterpret(t *testing.T) {
 				t.Fatalf("Expected: %v but got: %v", tt.expectedVal, gotVal)
 			}
 		}
+	}
+}
+
+func TestInterpretTrees(t *testing.T) {
+	type testCase struct {
+		name        string
+		expectedVal any
+		tree        Node
+		expectedErr error
+	}
+	for _, tt := range []testCase {
+		{
+			name: "Test Addition",
+			expectedVal: float64(3),
+			tree: &BinaryNode{
+				Le: &LiteralNode{
+					T: lexer.NewToken(lexer.Number, "1", 1, 1),
+				},
+				Op: lexer.NewToken(lexer.Plus, "+", 1, nil),
+				Re: &LiteralNode{
+					T: lexer.NewToken(lexer.Number, "2", 1, 2),
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			gotVal, err := tt.tree.Interpret()
+			if tt.expectedErr != nil{
+				if err.Error() != tt.expectedErr.Error() {
+					t.Fatalf("Expected error: %v Got error: %v", tt.expectedErr, err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			} else {
+				if !reflect.DeepEqual(tt.expectedVal, gotVal) {
+					t.Fatalf("Expected value: %v but got value: %v", tt.expectedVal, gotVal)
+				}
+			}
+		})
+
 	}
 }

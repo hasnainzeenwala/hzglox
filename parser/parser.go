@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 
-	"github.com/hasnainzeenwala/hzglox/lexer"
 	"github.com/hasnainzeenwala/hzglox/ast"
+	"github.com/hasnainzeenwala/hzglox/lexer"
 )
 
 // ============================================================================================
@@ -39,9 +39,6 @@ import (
 // For some of the rules, a generic function has been created since all of them had a very similar structure.
 // But the generic function follows the same idea described above.
 
-
-
-
 type Parser struct {
 	l *lexer.Lexer
 }
@@ -70,7 +67,6 @@ func (p *Parser) Parse() (ast.Node, error) {
 	}
 	return expr, nil
 }
-
 
 // =============================================================================
 // Parsing Rules Implementation
@@ -213,10 +209,6 @@ func (p *Parser) parsePrimaryRule() (ast.Node, error) {
 	}
 }
 
-
-
-
-
 // ========================================================================
 // Helper functions
 // ========================================================================
@@ -227,10 +219,13 @@ func (p *Parser) parsePrimaryRule() (ast.Node, error) {
 // *********************************************************
 // X is a non terminal
 // args:
-//    parseX: parsing function to parse the non-terminal X
-//    op: list of tokens [op1, op2, .....]
+//
+//	parseX: parsing function to parse the non-terminal X
+//	op: list of tokens [op1, op2, .....]
+//
 // Result:
-//    Binary tree | Result(parseX)
+//
+//	Binary tree | Result(parseX)
 func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (ast.Node, error), op []lexer.Token) (ast.Node, error) {
 	// First parse X. This is the first "Left" expression of the binary tree
 	left, err := parseX()
@@ -272,7 +267,7 @@ func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (ast.
 			return left, err
 		}
 
-		exp := &ast.Binary{
+		exp := &ast.BinaryNode{
 			Op: op,
 			Le: left,
 			Re: r,
