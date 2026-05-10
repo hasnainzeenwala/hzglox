@@ -164,8 +164,17 @@ func (t TokenType) String() string {
 
 type Token struct {
 	TType TokenType
+
+	// textual/string representation of the token encountered
+	// here numbers will also be represented as strings
 	Lexeme string
 	LineNo int
+
+	// this is for non-keyword user defined literals
+	// like identifier names/strings/numbers
+	// here number is stored as a floating point (f64),
+	// identifier name and string is stored as a string,
+	// they can be distinguished via the token type
 	Literal any
 }
 

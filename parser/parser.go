@@ -6,6 +6,10 @@ import (
 	"github.com/hasnainzeenwala/hzglox/lexer"
 )
 
+// ============================================================================================
+// Parser Description
+// ============================================================================================
+
 // Lox expression grammar
 // Unambiguous and left recursion removed.
 // "expression" is the starting rule of the grammar
@@ -21,7 +25,6 @@ import (
 //
 // **********************************************************************************
 // Parser is a recursive descent parser
-// Our grammar is unambiguous and the left-recursion is removed.
 // Every non-terminal/rule shall have its own parsing function. It will be named 'parse<rulename>rule()'
 // The recipe to create the parsing function is the following. Read the rule from left to right.
 // If you encounter a non-terminal, call the corresponding function for that non-terminal,
@@ -31,6 +34,9 @@ import (
 // For some of the rules, a generic function has been created since all of them had a very similar structure.
 // But the generic function follows the same idea described above.
 
+
+
+
 type Parser struct {
 	l *lexer.Lexer
 }
@@ -39,7 +45,8 @@ func NewParser(l *lexer.Lexer) *Parser {
 	return &Parser{l}
 }
 
-func (p *Parser) Parse() (Expr, error) {
+// Main public method which parses and returns the tree
+func (p *Parser) Parse() (Node, error) {
 	// begin parsing from the topmost rule
 	expr, err := p.parseExpressionRule()
 	if err != nil {
@@ -58,11 +65,16 @@ func (p *Parser) Parse() (Expr, error) {
 	return expr, nil
 }
 
-func (p *Parser) parseExpressionRule() (Expr, error) {
+
+// =============================================================================
+// Parsing Rules Implementation
+// =============================================================================
+
+func (p *Parser) parseExpressionRule() (Node, error) {
 	return p.parseEqualRule()
 }
 
-func (p *Parser) parseEqualRule() (Expr, error) {
+func (p *Parser) parseEqualRule() (Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.EqualEqual,
@@ -74,7 +86,7 @@ func (p *Parser) parseEqualRule() (Expr, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseComparisonRule, ops)
 }
 
-func (p *Parser) parseComparisonRule() (Expr, error) {
+func (p *Parser) parseComparisonRule() (Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Less,
@@ -92,7 +104,7 @@ func (p *Parser) parseComparisonRule() (Expr, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseTermRule, ops)
 }
 
-func (p *Parser) parseTermRule() (Expr, error) {
+func (p *Parser) parseTermRule() (Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Plus,
@@ -104,7 +116,7 @@ func (p *Parser) parseTermRule() (Expr, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseFactorRule, ops)
 }
 
-func (p *Parser) parseFactorRule() (Expr, error) {
+func (p *Parser) parseFactorRule() (Node, error) {
 	ops := []lexer.Token{
 		{
 			TType: lexer.Star,
@@ -116,7 +128,7 @@ func (p *Parser) parseFactorRule() (Expr, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseUnaryRule, ops)
 }
 
-func (p *Parser) parseUnaryRule() (Expr, error) {
+func (p *Parser) parseUnaryRule() (Node, error) {
 	pl, err := p.l.Peek()
 	if err != nil {
 		return nil, err
@@ -131,7 +143,7 @@ func (p *Parser) parseUnaryRule() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Unary{
+		return &UnaryNode{
 			T: t,
 			E: r,
 		}, nil
@@ -140,14 +152,14 @@ func (p *Parser) parseUnaryRule() (Expr, error) {
 	}
 }
 
-func (p *Parser) parsePrimaryRule() (Expr, error) {
+func (p *Parser) parsePrimaryRule() (Node, error) {
 	t, err := p.l.FetchNextToken()
 	if err != nil {
 		return nil, err
 	}
 	switch t.TType {
 	case lexer.Number, lexer.String, lexer.Nil, lexer.True, lexer.False:
-		return &Literal{
+		return &LiteralNode{
 			T: t,
 		}, nil
 
@@ -160,18 +172,26 @@ func (p *Parser) parsePrimaryRule() (Expr, error) {
 		if t.TType != lexer.RightParen {
 			return nil, fmt.Errorf("Expected Right Paren ')' at the end of the expression but found %s instead", t)
 		}
-		return &Grouping{exp}, nil
+		return &GroupingNode{exp}, nil
 	default:
 		return nil, fmt.Errorf("Token not recognized %s", t)
 	}
 }
+
+
+
+
+
+// ========================================================================
+// Helper functions
+// ========================================================================
 
 // General parsing function for all rules of type
 // *********************************************************
 // NT -> X ((op1 | op2 ...) X)*
 // *********************************************************
 // X can be a terminal or non terminal
-func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Expr, error), op []lexer.Token) (Expr, error) {
+func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Node, error), op []lexer.Token) (Node, error) {
 	// F represents the function meant to parse "X"
 	left, err := parseX()
 	if err != nil {
