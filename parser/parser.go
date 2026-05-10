@@ -25,12 +25,14 @@ import (
 //
 // **********************************************************************************
 // Parser is a recursive descent parser
+// Parse() function will return the whole parse tree of the source code.
 // Every non-terminal/rule shall have its own parsing function. It will be named 'parse<rulename>rule()'
 // The recipe to create the parsing function is the following.
 //     - Read the rule from left to right.
 //     - If you encounter a non-terminal, call the corresponding function for that non-terminal.
-//     - if you encounter a terminal parse it appropriately. The rule might have '|' which is the OR operator,
-//       so deal with the terminals accordingly.
+//     - if you encounter a terminal, peek and see if the next lexeme matches it.
+// 	         - If it does, consume the lexeme take the appropriate action.
+//           - Otherwise, return because the rule no longer applies.
 //     - Keep proceeding by matching the terminals and calling the functions for non-terminals
 //       in a similar fashion till the rule is done.
 // For some of the rules, a generic function has been created since all of them had a very similar structure.
@@ -47,7 +49,8 @@ func NewParser(l *lexer.Lexer) *Parser {
 	return &Parser{l}
 }
 
-// Main public method which parses and returns the tree
+// args: empty
+// result: Parse tree of the code
 func (p *Parser) Parse() (Node, error) {
 	// begin parsing from the topmost rule
 	expr, err := p.parseExpressionRule()
@@ -72,10 +75,18 @@ func (p *Parser) Parse() (Node, error) {
 // Parsing Rules Implementation
 // =============================================================================
 
+// Rule: -> expression   ->  equal
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Result(equal rule)
 func (p *Parser) parseExpressionRule() (Node, error) {
 	return p.parseEqualRule()
 }
 
+// Rule:  equal        ->  comparison (("==" | "!=") comparison)*
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Binary Node | Result(comparison rule)
 func (p *Parser) parseEqualRule() (Node, error) {
 	ops := []lexer.Token{
 		{
@@ -88,6 +99,10 @@ func (p *Parser) parseEqualRule() (Node, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseComparisonRule, ops)
 }
 
+// Rule:   comparison   ->  term ( ("<" | "<=" | ">" | ">=") term )*
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Binary Node | Result(term rule)
 func (p *Parser) parseComparisonRule() (Node, error) {
 	ops := []lexer.Token{
 		{
@@ -106,6 +121,10 @@ func (p *Parser) parseComparisonRule() (Node, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseTermRule, ops)
 }
 
+// Rule:   term         ->  factor (( "+" | "-" ) factor)*
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Binary Node | Result(factor rule)
 func (p *Parser) parseTermRule() (Node, error) {
 	ops := []lexer.Token{
 		{
@@ -118,6 +137,10 @@ func (p *Parser) parseTermRule() (Node, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseFactorRule, ops)
 }
 
+// Rule:   factor       ->  unary (("*" | "/") unary)*
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Binary Node | Result (unary rule)
 func (p *Parser) parseFactorRule() (Node, error) {
 	ops := []lexer.Token{
 		{
@@ -130,6 +153,10 @@ func (p *Parser) parseFactorRule() (Node, error) {
 	return p.genericParseFunctionForRuleOfTypeXopXRepeat(p.parseUnaryRule, ops)
 }
 
+// Rule:   unary        ->  ("-" | "!") unary | primary
+// -----------------------------------------------------------------------------
+// args: Empty
+// Result: Unary Node | Result(primary rule)
 func (p *Parser) parseUnaryRule() (Node, error) {
 	pl, err := p.l.Peek()
 	if err != nil {
@@ -154,6 +181,11 @@ func (p *Parser) parseUnaryRule() (Node, error) {
 	}
 }
 
+// Rule:   primary      ->  NUMBER | STRING | true | false | nil | "(" expression ")" ;
+// -----------------------------------------------------------------------------
+//
+// args: empty
+// Result: Literal Node | Grouping Node
 func (p *Parser) parsePrimaryRule() (Node, error) {
 	t, err := p.l.FetchNextToken()
 	if err != nil {
@@ -192,21 +224,32 @@ func (p *Parser) parsePrimaryRule() (Node, error) {
 // *********************************************************
 // NT -> X ((op1 | op2 ...) X)*
 // *********************************************************
-// X can be a terminal or non terminal
+// X is a non terminal
+// args:
+//    parseX: parsing function to parse the non-terminal X
+//    op: list of tokens [op1, op2, .....]
+// Result:
+//    Binary tree | Result(parseX)
 func (p *Parser) genericParseFunctionForRuleOfTypeXopXRepeat(parseX func() (Node, error), op []lexer.Token) (Node, error) {
-	// F represents the function meant to parse "X"
+	// First parse X. This is the first "Left" expression of the binary tree
 	left, err := parseX()
 	if err != nil {
 		return nil, err
 	}
-	// General parsing strategy is of creating a left associative tree.
-	// Above, X was already parsed. Now the next token shall be checked if it is
-	// of the appropriate type. If it doesn't match, our parsing is done and we return.
-	// Otherwise we consume it and then we again call "f" because the next part is expected to be "X".
-	// Once X is parsed, we have a binary expression of the form  {X op X}.
-	// We push this to the left (lets call it "W") and proceed ahead, trying to parse the next "op X".
-	// Once it is parsed, the new expression will be {W op X}. Then this expression will be pushed to the left
-	// and the new "op X" will be parsed. Convince yourself that this leads to a left associative tree.
+	// Above, X was already parsed. The following steps will be taken now:
+	//     - The next token shall be peeked to check if it lies in the list which was passed.
+	//     - If it doesn't, our parsing is done for this rule and we return.
+	//     - Otherwise we consume it and then call "parseX" because the next part is expected to be "X".
+	//     - Once X is parsed, create a binary expression of the form  {X op X}.
+	//     - Push this to the "left" (lets call it "W").
+	//     - Again at the top of the loop now
+	//     - Parse the next "op X".
+	//     - Create new "left" expression {W op X}
+	//     - Parse the next Op X
+	//     - ....
+	//     - Continue till you encounter a token which isn't in the list and return the the tree present in "left"
+	//     - The tree is now your parsed binary expression
+	// Convince yourself that this leads to a left associative tree.
 	for {
 		pl, err := p.l.Peek()
 		if err != nil {
