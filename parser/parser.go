@@ -26,11 +26,13 @@ import (
 // **********************************************************************************
 // Parser is a recursive descent parser
 // Every non-terminal/rule shall have its own parsing function. It will be named 'parse<rulename>rule()'
-// The recipe to create the parsing function is the following. Read the rule from left to right.
-// If you encounter a non-terminal, call the corresponding function for that non-terminal,
-// if you encounter a terminal parse it appropriately. The rule might have '|' which is the OR operator,
-// so deal with the terminals accordingly. Keep proceeding by matching the terminals and calling the functions for non-terminals
-// in a similar fashion till the rule is done.
+// The recipe to create the parsing function is the following.
+//     - Read the rule from left to right.
+//     - If you encounter a non-terminal, call the corresponding function for that non-terminal.
+//     - if you encounter a terminal parse it appropriately. The rule might have '|' which is the OR operator,
+//       so deal with the terminals accordingly.
+//     - Keep proceeding by matching the terminals and calling the functions for non-terminals
+//       in a similar fashion till the rule is done.
 // For some of the rules, a generic function has been created since all of them had a very similar structure.
 // But the generic function follows the same idea described above.
 

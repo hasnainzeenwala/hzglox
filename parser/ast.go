@@ -10,6 +10,7 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/hasnainzeenwala/hzglox/lexer"
 )
@@ -46,6 +47,7 @@ func (l *LiteralNode) PrintAst() string {
 }
 
 func (l *LiteralNode) Interpret() (any, error) {
+	// Literal resolves to itself
 	return l.T.Literal, nil
 }
 
@@ -63,6 +65,7 @@ func (g *GroupingNode) PrintAst() string {
 }
 
 func (g *GroupingNode) Interpret() (any, error) {
+	// Just interpret the inner expression
 	return g.E.Interpret()
 }
 
@@ -81,10 +84,13 @@ func (u *UnaryNode) PrintAst() string {
 }
 
 func (u *UnaryNode) Interpret() (any, error) {
+	// Interpret the inner expression
 	v, err := u.E.Interpret()
 	if err != nil {
 		return nil, err
 	}
+
+	// Apply the operator on the expression
 	if u.T.TType == lexer.Minus {
 		vfloat, isFLoat := v.(float64)
 		if !isFLoat {
@@ -92,7 +98,7 @@ func (u *UnaryNode) Interpret() (any, error) {
 		}
 		return -vfloat, nil
 	} else if u.T.TType == lexer.Bang {
-		vbool, err := InterpretAsBoolean(v)
+		vbool, err := CastToBoolean(v)
 		if err != nil {
 			return nil, err
 		}
@@ -117,6 +123,145 @@ func (b *Binary) PrintAst() string {
 }
 
 func (b *Binary) Interpret() (any, error) {
+	// Interpret both the left and right branches
+	left, err := b.Le.Interpret()
+	if err != nil {
+		return nil, err
+	}
+
+	right, err := b.Re.Interpret()
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply the operation
+	switch b.Op.TType{	
+	// -----------------------------------------------------------------------------------------
+	// Arithmetic operators
+	// -----------------------------------------------------------------------------------------
+	case lexer.Plus:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum + rightNum, nil
+		}
+
+		// Are both strings?
+		leftString, rightString, err := GetStringValues(left, right)
+		if err == nil {
+			return leftString + rightString, nil
+		}
+
+		// Can't add if they are neither numbers nor strings
+		return nil, fmt.Errorf("Can't add values of type %T and %T either both must be of type NUMBER or STRING", left, right)
+	case lexer.Minus:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum - rightNum, nil
+		}
+
+		// Can't subtract if they aren't numbers
+		return nil, fmt.Errorf("Can't subtract values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.Star:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum * rightNum, nil
+		}
+
+		// Can't multiply if they aren't numbers
+		return nil, fmt.Errorf("Can't multiply values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.Slash:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum * rightNum, nil
+		}
+
+		// Can't divide if they aren't numbers
+		return nil, fmt.Errorf("Can't divide values of type %T and %T both must be of type NUMBER", left, right)
+	
+	// ---------------------------------------------------------------------------------------------------
+	// Comparison Operators
+	// ----------------------------------------------------------------------------------------------------
+	case lexer.Less:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum < rightNum, nil
+		}
+
+		// Can't compare if they aren't numbers
+		return nil, fmt.Errorf("Can't compare values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.LessEqual:	
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum <= rightNum, nil
+		}
+
+		// Can't compare if they aren't numbers
+		return nil, fmt.Errorf("Can't compare values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.Greater:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum > rightNum, nil
+		}
+
+		// Can't compare if they aren't numbers
+		return nil, fmt.Errorf("Can't compare values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.GreaterEqual:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum >= rightNum, nil
+		}
+
+		// Can't compare if they aren't numbers
+		return nil, fmt.Errorf("Can't compare values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.BangEqual:
+		// Are both numbers?
+		leftNum, rightNum, err := GetNumericalValues(left, right)
+		if err == nil {
+			return leftNum != rightNum, nil
+		}
+
+		// Can't compare if they aren't numbers
+		return nil, fmt.Errorf("Can't compare values of type %T and %T both must be of type NUMBER", left, right)
+	case lexer.EqualEqual:
+		return SafeEqual(left, right), nil
+	
+	// --------------------------------------------------------------------------------------------
+	// Logical Operators
+	// --------------------------------------------------------------------------------------------
+	case lexer.Or:
+		// Are both booleans?
+		leftBool, rightBool, err := GetBoolValues(left, right)
+		if err == nil {
+			return leftBool || rightBool, nil
+		}
+
+		// Can't apply logical operator if they aren't booleans
+		return nil, fmt.Errorf("Can't do OR operation on type %T and %T both must be of type boolean", left, right)
+	case lexer.And:
+		// Are both booleans?
+		leftBool, rightBool, err := GetBoolValues(left, right)
+		if err == nil {
+			return leftBool && rightBool, nil
+		}
+
+		// Can't apply logical operator if they aren't booleans
+		return nil, fmt.Errorf("Can't do AND operation on type %T and %T both must be of type boolean", left, right)
+	
+	// --------------------------------------------------------------------------------------------
+	// Invalid Operator
+	// --------------------------------------------------------------------------------------------
+	default:
+		return nil , fmt.Errorf("Not a valid Binary operator %v", b.Op.TType)
+	}
+
 	return nil, nil
 }
 
@@ -154,9 +299,9 @@ func IsOperator(t lexer.Token) bool {
 		t.TType == lexer.Plus || t.TType == lexer.Slash
 }
 
-// Tries to interpret the supplied value as a boolean.
-// if it can't it returns an error.
-func InterpretAsBoolean(v any) (bool, error) {
+// Casting functions
+// -----------------------------------------------------------------------------------
+func CastToBoolean(v any) (bool, error) {
 	if v == nil {
 		return false, nil
 	}
@@ -169,4 +314,81 @@ func InterpretAsBoolean(v any) (bool, error) {
 		return false, nil
 	}
 	return false, fmt.Errorf("Value can't be interpreted as a boolean %v", v)
+}
+
+func CastToF64(v any) (float64, error) {
+	if v == nil {
+		return 0, fmt.Errorf("Value is nil not a valid number")
+	}
+
+	vfloat, isFloat := v.(float64)
+	if isFloat{
+		return vfloat, nil
+	}
+
+	return 0, fmt.Errorf("Value can't be interpreted as a number because it is of type %T", v)
+
+}
+
+func CastToString(v any) (string, error) {
+	if v == nil {
+		return "", fmt.Errorf("Value is nil, not a valid string")
+	}
+
+	vstring, isString := v.(string)
+	if isString {
+		return vstring, nil
+	}
+
+	return "", fmt.Errorf("Value can't be interpreted as a string because it is of type %T", v)
+}
+
+// Try to cast both values to float. Return an error if either cast fails
+func GetNumericalValues(v1, v2 any) (float64, float64, error) {
+	v1F, err := CastToF64(v1)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	v2F, err := CastToF64(v2)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return v1F, v2F, nil
+}
+
+// Try to cast both values to string. Return an error if either cast fails
+func GetStringValues(v1, v2 any) (string, string, error) {
+	v1F, err := CastToString(v1)
+	if err != nil {
+		return "", "", err
+	}
+
+	v2F, err := CastToString(v2)
+	if err != nil {
+		return "", "", err
+	}
+
+	return v1F, v2F, nil
+}
+
+// Try to cast both values to Boolean. Return an error if either cast fails
+func GetBoolValues(v1, v2 any) (bool, bool, error) {
+	v1B, err := CastToBoolean(v1)
+	if err != nil {
+		return false, false, err
+	}
+
+	v2B, err := CastToBoolean(v2)
+	if err != nil {
+		return false, false, err
+	}
+
+	return v1B, v2B, nil
+}
+
+// Check equality of "any" types
+func SafeEqual(v1, v2 any) bool {
+	return reflect.DeepEqual(v1, v2)
 }
